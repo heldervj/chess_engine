@@ -43,8 +43,13 @@ def jogador_random(board):
     
     return move.uci()
 
-def joga_random(move, board, tipo_jogador=jogador_random):
+def joga_random(move, board, tipo_jogador='jogador_random'):
     
+    if tipo_jogador=='jogador_random':
+        tipo_jogador = jogador_random
+    elif tipo_jogador=='jogador_random_esp':
+        tipo_jogador = jogador_random_esp
+
     board = board.copy()
     peca = board.turn
     
@@ -61,7 +66,50 @@ def joga_random(move, board, tipo_jogador=jogador_random):
     
     return score_move
 
-def play_game(player1, player2, board=None, visual="svg", pause=0.1):
+def joga_random_valores(move, board, tipo_jogador='jogador_random', profundidade=5):
+    
+    if tipo_jogador=='jogador_random':
+        tipo_jogador = jogador_random
+    elif tipo_jogador=='jogador_random_esp':
+        tipo_jogador = jogador_random_esp
+
+    board = board.copy()
+    peca = board.turn
+    
+    board.push_uci(move.uci())
+    
+    resultado, _, _ = play_game(tipo_jogador, tipo_jogador, board, visual=None, max_moves=profundidade)
+
+    score_move = analise_tabuleiro(board, peca)
+    
+    return score_move
+
+def analise_tabuleiro(board, my_color):
+    score = random.random()
+    ## Check some things about this move:
+    # score += 10 if board.is_capture(move) else 0
+    # Now check some other things:
+    for (piece, value) in [(chess.PAWN, 1), 
+                           (chess.BISHOP, 4), 
+                           (chess.KING, 0), 
+                           (chess.QUEEN, 10), 
+                           (chess.KNIGHT, 5),
+                           (chess.ROOK, 3)]:
+        score += len(board.pieces(piece, my_color)) * value
+        score -= len(board.pieces(piece, not my_color)) * value
+        # can also check things about the pieces position here
+    # Check global things about the board
+    winner = not board.turn
+
+    if board.is_checkmate():
+        if winner == my_color:
+            score += 100
+        else:
+            score -= 100
+
+    return score
+
+def play_game(player1, player2, board=None, visual="svg", pause=0.1, max_moves=1000):
     """
     playerN1, player2: functions that takes board, return uci move
     visual: "simple" | "svg" | None
@@ -71,7 +119,7 @@ def play_game(player1, player2, board=None, visual="svg", pause=0.1):
         board = chess.Board()
 
     try:
-        while not board.is_game_over(claim_draw=True):
+        while (not board.is_game_over(claim_draw=True)) and (max_moves > 0.0):
             if board.turn == chess.WHITE:
                 uci = player1(board)
             else:
@@ -87,6 +135,9 @@ def play_game(player1, player2, board=None, visual="svg", pause=0.1):
                 display(HTML(html))
                 if visual == "svg":
                     time.sleep(pause)
+
+            max_moves += -.5
+
     except KeyboardInterrupt:
         msg = "Game interrupted!"
         return (None, msg, board)
@@ -102,6 +153,8 @@ def play_game(player1, player2, board=None, visual="svg", pause=0.1):
         msg = "draw: insufficient material"
     elif board.can_claim_draw():
         msg = "draw: claim"
+    else:
+        msg = "break"
     if visual is not None:
         print(msg)
     return (result, msg, board)
